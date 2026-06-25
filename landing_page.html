@@ -5,42 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAST BookSwap | Swap Books Instantly</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { line-height: 1.6; color: #333; background: #f4f7f6; }
-        header { background: #2c3e50; color: #fff; padding: 4rem 1rem; text-align: center; }
+        :root { --primary: #2563eb; --dark: #1e293b; --light: #f8fafc; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: var(--dark); margin: 0; padding: 0; }
+        header { padding: 4rem 1rem; text-align: center; background: var(--light); }
+        h1 { font-size: 3rem; margin-bottom: 1rem; color: var(--primary); }
         .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-        h1 { font-size: 2.5rem; margin-bottom: 1rem; }
-        .subheadline { font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9; }
-        .cta-button { display: inline-block; background: #27ae60; color: #fff; padding: 1rem 2rem; text-decoration: none; border-radius: 5px; font-weight: bold; transition: background 0.3s; }
-        .cta-button:hover { background: #219150; }
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-top: 3rem; }
-        .feature-card { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-        .feature-card h3 { margin-bottom: 1rem; color: #2c3e50; }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin: 3rem 0; }
+        .feature-card { padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .cta-button { display: inline-block; background: var(--primary); color: white; padding: 1rem 2rem; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .cta-button:hover { background: #1d4ed8; }
     </style>
 </head>
 <body>
 
 <header>
     <h1>FAST BookSwap</h1>
-    <p class="subheadline">Turn your finished pages into your next great adventure—instantly.</p>
-    <a href="#" class="cta-button">Start Swapping Now</a>
+    <p>The fastest way to trade your read books for new adventures.</p>
 </header>
 
 <main class="container">
     <section class="features">
         <div class="feature-card">
-            <h3>Lightning Fast</h3>
-            <p>Our localized matching algorithm connects you with nearby readers in seconds, not days.</p>
+            <h3>Instant Matching</h3>
+            <p>Our algorithm connects you with local readers instantly, ensuring you never wait long to swap.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Verified Quality</h3>
+            <p>Every book is checked by our community standards to ensure you always receive a great copy.</p>
         </div>
         <div class="feature-card">
             <h3>Zero Cost</h3>
-            <p>Swap books for free. No hidden fees, just a community-driven library at your fingertips.</p>
-        </div>
-        <div class="feature-card">
-            <h3>Eco-Friendly</h3>
-            <p>Reduce paper waste by keeping books in circulation and out of landfills.</p>
+            <p>No platform fees. Just pay for shipping or meet locally to trade for free.</p>
         </div>
     </section>
+
+    <div style="text-align: center;">
+        <a href="#signup" class="cta-button">Start Swapping Today</a>
+    </div>
 </main>
 
 </body>
