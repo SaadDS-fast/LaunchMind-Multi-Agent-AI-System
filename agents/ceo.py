@@ -1,10 +1,11 @@
 from message_bus import MessageBus
 from typing import Optional, Dict
 import os
-import json
-import time
 from dotenv import load_dotenv
-from google import genai
+from llm_client import call_llm
+from logging_utils import log, log_skip, log_success
+from slack_sdk.errors import SlackApiError
+from text_utils import extract_json
 
 
 class CEOAgent:
@@ -13,23 +14,9 @@ class CEOAgent:
         self.name = "CEO"
         self.startup_idea = None
         load_dotenv()
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
     def _extract_json(self, text: str):
-        if not text:
-            return None
-
-        cleaned = text.strip()
-
-        if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
-            if cleaned.lower().startswith("json"):
-                cleaned = cleaned[4:].strip()
-
-        try:
-            return json.loads(cleaned)
-        except Exception:
-            return None
+        return extract_json(text)
 
     def _fallback_plan(self, startup_idea: str) -> dict:
         return {
@@ -45,26 +32,7 @@ class CEOAgent:
         }
 
     def _call_gemini(self, prompt: str) -> str:
-        last_error = None
-
-        for attempt in range(3):
-            try:
-                client = genai.Client()
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=prompt
-                )
-                text = (response.text or "").strip()
-                if text:
-                    return text
-            except Exception as e:
-                last_error = e
-                print(f"Gemini error (CEO attempt {attempt + 1}):", e)
-                time.sleep(2 ** attempt)
-
-        if last_error:
-            print("Gemini failed after retries:", last_error)
-        return ""
+        return call_llm(prompt, self.name)
 
     def start_project(self, startup_idea: str):
         self.startup_idea = startup_idea
@@ -92,6 +60,9 @@ Make the tasks specific to the startup idea.
         if not parsed:
             parsed = self._fallback_plan(startup_idea)
             raw = parsed["reasoning"]
+            log_skip("CEO", "LLM unavailable; fallback project plan used.")
+        else:
+            log_success("CEO", "Project plan generated.")
 
         task_payloads = {
             "Product": {
@@ -131,6 +102,10 @@ Make the tasks specific to the startup idea.
         if not qa_feedback:
             return None
 
+        if qa_feedback["payload"].get("verdict") == "pass":
+            log("CEO", "QA passed; no revision needed.")
+            return None
+
         feedback = qa_feedback["payload"].get("feedback", "")
 
         prompt = f"""
@@ -164,6 +139,7 @@ If revision is needed, answer YES.
         revision_instruction = parsed.get("revision_instruction", feedback)
 
         if "YES" in decision or "REVISE" in decision:
+            log("CEO", "Revision requested based on QA feedback.")
             return self.bus.create_message(
                 from_agent=self.name,
                 to_agent="Engineer",
@@ -185,7 +161,7 @@ If revision is needed, answer YES.
         channel = os.getenv("SLACK_CHANNEL", "#launches")
 
         if not token:
-            print("Slack error: missing SLACK_BOT_TOKEN")
+            log_skip("CEO", "Slack integration skipped (credentials not configured).")
             return None
 
         marketing_content = marketing_content or {}
@@ -209,39 +185,46 @@ Do not use bullets. Keep it polished and professional.
             summary_text = f"FAST BookSwap is ready. PR: {pr_url}"
 
         client = WebClient(token=token)
-        client.chat_postMessage(
-            channel=channel,
-            text=summary_text,
-            blocks=[
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Final Launch Summary: FAST BookSwap"
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": summary_text
-                    }
-                },
-                {
-                    "type": "section",
-                    "fields": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*GitHub PR:*\n<{pr_url}|View PR>"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*QA Verdict:*\n{qa_result.get('verdict', 'pass')}"
+        try:
+            client.chat_postMessage(
+                channel=channel,
+                text=summary_text,
+                blocks=[
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Final Launch Summary: FAST BookSwap"
                         }
-                    ]
-                }
-            ]
-        )
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": summary_text
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*GitHub PR:*\n<{pr_url}|View PR>"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*QA Verdict:*\n{qa_result.get('verdict', 'pass')}"
+                            }
+                        ]
+                    }
+                ]
+            )
+        except SlackApiError as e:
+            log_skip("CEO", f"Final Slack summary skipped ({e.response.get('error', e)}).")
+            return None
+        except Exception as e:
+            log_skip("CEO", f"Final Slack summary skipped ({e}).")
+            return None
 
-        print("CEO final summary sent to Slack.")
+        log_success("CEO", "Final summary sent to Slack.")
         return summary_text

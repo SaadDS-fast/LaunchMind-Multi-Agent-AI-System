@@ -1,9 +1,8 @@
 from message_bus import MessageBus
 from dotenv import load_dotenv
-from google import genai
-import os
-import json
-import time
+from llm_client import call_llm
+from logging_utils import log_skip, log_success
+from text_utils import extract_json
 
 
 class ProductAgent:
@@ -11,23 +10,9 @@ class ProductAgent:
         self.bus = bus
         self.name = "Product"
         load_dotenv()
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
     def _extract_json(self, text: str):
-        if not text:
-            return None
-
-        cleaned = text.strip()
-
-        if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
-            if cleaned.lower().startswith("json"):
-                cleaned = cleaned[4:].strip()
-
-        try:
-            return json.loads(cleaned)
-        except Exception:
-            return None
+        return extract_json(text)
 
     def _fallback_spec(self, startup_idea: str) -> dict:
         return {
@@ -55,26 +40,7 @@ class ProductAgent:
         }
 
     def _call_gemini(self, prompt: str) -> str:
-        last_error = None
-
-        for attempt in range(3):
-            try:
-                client = genai.Client()
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=prompt
-                )
-                text = (response.text or "").strip()
-                if text:
-                    return text
-            except Exception as e:
-                last_error = e
-                print(f"Gemini error (Product attempt {attempt + 1}):", e)
-                time.sleep(2 ** attempt)
-
-        if last_error:
-            print("Gemini failed after retries:", last_error)
-        return ""
+        return call_llm(prompt, self.name)
 
     def process_task(self):
         messages = self.bus.get_messages_for_agent(self.name)
@@ -127,6 +93,9 @@ Rules:
 
         if not parsed:
             parsed = self._fallback_spec(startup_idea)
+            log_skip("Product", "LLM unavailable; fallback product specification used.")
+        else:
+            log_success("Product", "Product specification generated.")
 
         spec = parsed
 

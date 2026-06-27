@@ -1,11 +1,12 @@
 import os
-import json
-import time
 import requests
 from dotenv import load_dotenv
 from message_bus import MessageBus
-from google import genai
+from llm_client import call_llm
+from logging_utils import log_skip, log_success
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from text_utils import extract_json
 
 load_dotenv()
 
@@ -14,37 +15,12 @@ class MarketingAgent:
     def __init__(self, bus: MessageBus):
         self.bus = bus
         self.name = "Marketing"
-        self.model = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
     def _call_gemini(self, prompt: str) -> str:
-        for attempt in range(3):
-            try:
-                client = genai.Client()
-                response = client.models.generate_content(
-                    model=self.model,
-                    contents=prompt
-                )
-                if response.text:
-                    return response.text.strip()
-            except Exception as e:
-                print(f"Gemini error (Marketing attempt {attempt + 1}):", e)
-                time.sleep(2 ** attempt)
-        return ""
+        return call_llm(prompt, self.name)
 
     def _extract_json(self, text: str):
-        if not text:
-            return None
-
-        cleaned = text.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
-            if cleaned.lower().startswith("json"):
-                cleaned = cleaned[4:].strip()
-
-        try:
-            return json.loads(cleaned)
-        except Exception:
-            return None
+        return extract_json(text)
 
     def _latest_product_spec(self):
         messages = self.bus.get_messages()
@@ -54,21 +30,29 @@ class MarketingAgent:
         return None
 
     def send_email(self, subject, body):
+        api_key = os.getenv("SENDGRID_API_KEY")
+        email_to = os.getenv("EMAIL_TO")
+        email_from = os.getenv("EMAIL_FROM")
+
+        if not api_key or not email_to or not email_from:
+            log_skip("Marketing", "Email integration skipped (credentials not configured).")
+            return None
+
         url = "https://api.sendgrid.com/v3/mail/send"
 
         headers = {
-            "Authorization": f"Bearer {os.getenv('SENDGRID_API_KEY')}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
 
         data = {
             "personalizations": [
                 {
-                    "to": [{"email": os.getenv("EMAIL_TO")}],
+                    "to": [{"email": email_to}],
                     "subject": subject
                 }
             ],
-            "from": {"email": os.getenv("EMAIL_FROM")},
+            "from": {"email": email_from},
             "content": [
                 {
                     "type": "text/html",
@@ -77,58 +61,70 @@ class MarketingAgent:
             ]
         }
 
-        response = requests.post(url, headers=headers, json=data, timeout=30)
+        try:
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+        except requests.RequestException as e:
+            log_skip("Marketing", f"Email integration request failed ({e}).")
+            return None
 
         if response.status_code == 202:
-            print("Email sent successfully.")
+            log_success("Marketing", "Email sent successfully.")
         else:
-            print("Email error:", response.status_code, response.text)
+            log_skip("Marketing", f"Email integration returned status {response.status_code}.")
+        return response
 
     def post_slack(self, content: dict, pr_url: str):
         token = os.getenv("SLACK_BOT_TOKEN")
         channel = os.getenv("SLACK_CHANNEL", "#launches")
 
         if not token:
-            print("Slack error: missing SLACK_BOT_TOKEN")
+            log_skip("Marketing", "Slack integration skipped (credentials not configured).")
             return None
 
         client = WebClient(token=token)
 
-        response = client.chat_postMessage(
-            channel=channel,
-            text=f"New launch: {content.get('tagline', 'FAST BookSwap')}",
-            blocks=[
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": f"New Launch: {content.get('tagline', 'FAST BookSwap')}"
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": content.get("description", "")
-                    }
-                },
-                {
-                    "type": "section",
-                    "fields": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*GitHub PR:*\n<{pr_url}|View PR>"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Status:* Ready for review"
+        try:
+            response = client.chat_postMessage(
+                channel=channel,
+                text=f"New launch: {content.get('tagline', 'FAST BookSwap')}",
+                blocks=[
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": f"New Launch: {content.get('tagline', 'FAST BookSwap')}"
                         }
-                    ]
-                }
-            ]
-        )
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": content.get("description", "")
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*GitHub PR:*\n<{pr_url}|View PR>"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": "*Status:* Ready for review"
+                            }
+                        ]
+                    }
+                ]
+            )
+        except SlackApiError as e:
+            log_skip("Marketing", f"Slack integration failed ({e.response.get('error', e)}).")
+            return None
+        except Exception as e:
+            log_skip("Marketing", f"Slack integration failed ({e}).")
+            return None
 
-        print("Slack marketing message sent.")
+        log_success("Marketing", "Slack launch message sent.")
         return response
 
     def process_task(self):
@@ -188,6 +184,9 @@ Rules:
                 "instagram_post": f"Save money on books with {product_name}.",
                 "slack_message": f"{product_name} is live for campus book swapping."
             }
+            log_skip("Marketing", "LLM unavailable; fallback marketing copy used.")
+        else:
+            log_success("Marketing", "Marketing content generated.")
 
         self.send_email(
             subject=marketing_content["email_subject"],
