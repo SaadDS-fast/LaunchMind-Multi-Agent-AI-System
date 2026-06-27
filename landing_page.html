@@ -1,12 +1,143 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>FAST BookSwap</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAST BookSwap</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: #17202a;
+      background: #f7faf8;
+      line-height: 1.6;
+    }
+
+    main {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 56px 0;
+    }
+
+    .hero {
+      display: grid;
+      gap: 24px;
+      padding: 48px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #dfe8e3;
+      box-shadow: 0 18px 48px rgba(23, 32, 42, 0.08);
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      line-height: 1.02;
+    }
+
+    .subheadline {
+      max-width: 680px;
+      margin: 0;
+      font-size: 1.2rem;
+      color: #3d4f45;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 22px;
+      border-radius: 6px;
+      border: 0;
+      background: #0b7a53;
+      color: #ffffff;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .contact {
+      color: #315444;
+      font-weight: 700;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .feature {
+      padding: 22px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #dfe8e3;
+    }
+
+    .feature h2 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+
+    .feature p {
+      margin: 0;
+      color: #4d5e55;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        padding: 24px 0;
+      }
+
+      .hero {
+        padding: 28px;
+      }
+
+      .features {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-<h1>FAST BookSwap</h1>
-<p>Campus marketplace for used books.</p>
-<button>Join Waitlist</button>
+  <main>
+    <section class="hero">
+      <h1>Find the books you need before classes fill up.</h1>
+      <p class="subheadline">FAST BookSwap helps FAST students buy, sell, and swap used textbooks on campus without hunting through scattered group chats.</p>
+      <div class="cta-row">
+        <a class="button" href="mailto:hello@fastbookswap.com?subject=Join%20FAST%20BookSwap">Get Early Access</a>
+        <span class="contact">Questions? hello@fastbookswap.com</span>
+      </div>
+    </section>
+
+    <section class="features" aria-label="Key features">
+      <article class="feature">
+        <h2>List in minutes</h2>
+        <p>Add your used books fast with course, condition, price, and pickup details.</p>
+      </article>
+      <article class="feature">
+        <h2>Search by course</h2>
+        <p>Find books by title, ISBN, semester, or course code from nearby students.</p>
+      </article>
+      <article class="feature">
+        <h2>Swap on campus</h2>
+        <p>Coordinate safe handoffs at familiar campus spots and save money before the semester rush.</p>
+      </article>
+    </section>
+  </main>
 </body>
 </html>
