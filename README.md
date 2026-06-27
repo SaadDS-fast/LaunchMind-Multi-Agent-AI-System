@@ -1,4 +1,4 @@
-# 🚀 LaunchMind – Multi-Agent AI Startup Builder
+# 🚀 LaunchMind — Autonomous Multi-Agent AI System
 
 LaunchMind is an autonomous **Multi-Agent AI system** that transforms a startup idea into a complete product workflow using coordinated AI agents. It demonstrates how specialized AI agents collaborate through structured communication to perform product planning, software generation, quality assurance, and marketing automation while integrating with real-world developer tools.
 
